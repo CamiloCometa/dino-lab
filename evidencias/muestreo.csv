@@ -1,0 +1,9 @@
+estrategia,temperatura,top_k,top_p,% nuevos,% únicos,long. media,ejemplos
+T=0.5,0.5,0,1.0,93.0,98.0,11.9,"tegonosaurus, necongosaurus, striptosaurus, anchangosaurus, moreosaurus"
+T=1.0,1.0,0,1.0,100.0,100.0,12.0,"tegothcisaurus, congelodon, ginggpanosaurus, huontasaurus, stonecasauus"
+T=1.5,1.5,0,1.0,100.0,100.0,12.3,"tegothcistes, neconge, palodosaurus, yonmadris, ortdoplesus"
+top-k=3,1.0,3,1.0,92.0,88.0,11.6,"salamocistes, sichosaurus, corelopeny, shangosaurus, camposaurus"
+top-k=10,1.0,10,1.0,97.0,100.0,11.9,"tegothcisaurus, congosaurus, stagonia, gondrosaurus, praselodon"
+top-p=0.5,1.0,0,0.5,88.0,87.0,12.4,"tegongchus, panychosaurus, teraconthosaurus, salagasaurus, shangosaurus"
+top-p=0.9,1.0,0,0.9,97.0,100.0,12.0,"tegotocephale, monosaurus, teimagosaurus, dryptorhamor, suunmosaurus"
+T=0.8 + top-p=0.9,0.8,0,0.9,93.0,99.0,11.9,"tegotocephale, monosaurus, corelopelta, madrosaurus, prosaurus"

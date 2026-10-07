@@ -1,0 +1,21 @@
+{
+  "modelo": "B_LSTM_2x256",
+  "muestreo": {
+    "temperatura": 0.8,
+    "top_k": 0,
+    "top_p": 0.9
+  },
+  "nombres": [
+    "Sinornithomerus",
+    "Aptosaurus",
+    "Gomposaurus",
+    "Brintodon",
+    "Corachornis",
+    "Steroponyx",
+    "Menosaurus",
+    "Sinocephale",
+    "Sinornis",
+    "Stradosaurus"
+  ],
+  "elegido": "Sinornithomerus"
+}
