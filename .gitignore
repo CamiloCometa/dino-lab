@@ -1,0 +1,9 @@
+.env
+*.env
+!.env.example
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+ngrok.yml
+*.log
+.DS_Store

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isla de los Dinosaurios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --papel: #E3E6DA;
+    --hoja: #F1F3EC;
+    --tinta: #1E2A23;
+    --gris: #56645B;
+    --linea: #C4CABB;
+    --ambar: #B8741A;
+    --ambar-suave: #F0DDBD;
+    --error: #9B2C1F;
+    --serif: "Young Serif", Georgia, serif;
+    --sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--papel); color: var(--tinta);
+    font: 16px/1.55 var(--sans);
+    min-height: 100vh;
+  }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ambar); outline-offset: 2px; }
+
+  /* ---------- cabecera ---------- */
+  header {
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    padding: 16px 32px; border-bottom: 1px solid var(--linea);
+  }
+  .marca { font-family: var(--serif); font-size: 1.15rem; margin-right: auto; }
+  .pasos { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; font-size: .875rem; }
+  .pasos li {
+    display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+    color: var(--gris);
+  }
+  .pasos li .n {
+    width: 20px; height: 20px; border-radius: 50%; border: 1px solid currentColor;
+    display: grid; place-items: center; font-size: .75rem;
+  }
+  .pasos li[data-estado="activo"] { color: var(--tinta); background: var(--ambar-suave); }
+  .pasos li[data-estado="activo"] .n { border-color: var(--ambar); animation: pulso 1.2s ease-in-out infinite; }
+  .pasos li[data-estado="listo"] { color: var(--tinta); }
+  .pasos li[data-estado="listo"] .n { background: var(--tinta); color: var(--hoja); border-color: var(--tinta); }
+  .pasos li[data-estado="error"] { color: var(--error); }
+  @keyframes pulso { 50% { box-shadow: 0 0 0 4px var(--ambar-suave); } }
+
+  .boton {
+    background: var(--tinta); color: var(--hoja); border: 0; border-radius: 6px;
+    padding: 10px 18px; font-weight: 600;
+  }
+  .boton:hover { background: #2E3F35; }
+  .boton:disabled { opacity: .45; cursor: progress; }
+
+  /* ---------- cuerpo ---------- */
+  main {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr);
+    gap: 32px; padding: 32px; max-width: 1280px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 20px; } header { padding: 16px 20px; } }
+
+  /* ficha / lámina */
+  .lamina { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 600px) { .lamina { grid-template-columns: 1fr; } }
+  figure { margin: 0; }
+  .marco {
+    aspect-ratio: 1; background: var(--hoja); border: 1px solid var(--linea);
+    padding: 8px; display: grid; place-items: center; color: var(--gris); font-size: .85rem; text-align: center;
+  }
+  .marco img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  figcaption { font-size: .8rem; color: var(--gris); margin-top: 6px; }
+
+  .nombre {
+    font-family: var(--serif); font-weight: 400; margin: 0;
+    font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 1; letter-spacing: -.01em;
+    overflow-wrap: anywhere; min-height: 1em;
+  }
+  .nombre .cursor { display: inline-block; width: .06em; height: .8em; background: var(--ambar); margin-left: .04em; vertical-align: baseline; animation: parpadeo .8s steps(1) infinite; }
+  @keyframes parpadeo { 50% { opacity: 0; } }
+  .significado { color: var(--gris); margin: 10px 0 0; font-style: italic; max-width: 60ch; }
+
+  dl.notas { margin: 28px 0 0; display: grid; grid-template-columns: 9.5rem 1fr; border-top: 1px solid var(--linea); }
+  dl.notas dt, dl.notas dd { padding: 12px 0; border-bottom: 1px solid var(--linea); margin: 0; }
+  dl.notas dt { font-weight: 600; font-size: .9rem; padding-right: 12px; }
+  dl.notas dd { max-width: 62ch; }
+  dl.notas .rasgo { background: var(--ambar-suave); padding-left: 10px; padding-right: 10px; }
+  dl.notas dt.rasgo { border-left: 3px solid var(--ambar); }
+  @media (max-width: 600px) { dl.notas { grid-template-columns: 1fr; } dl.notas dt { border-bottom: 0; padding-bottom: 0; } }
+  .esqueleto { display: block; height: .9em; background: var(--linea); border-radius: 3px; opacity: .6; width: 90%; }
+
+  details.modelo { margin-top: 28px; font-size: .9rem; }
+  details.modelo summary { cursor: pointer; font-weight: 600; }
+  details.modelo table { border-collapse: collapse; margin-top: 10px; width: 100%; max-width: 520px; }
+  details.modelo td { padding: 5px 0; border-bottom: 1px solid var(--linea); }
+  details.modelo td:first-child { color: var(--gris); width: 45%; }
+
+  .vacio { grid-column: 1 / -1; text-align: center; padding: 12vh 16px; }
+  .vacio h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 12px; }
+  .vacio p { color: var(--gris); max-width: 48ch; margin: 0 auto 24px; }
+
+  /* chat */
+  .chat {
+    background: var(--hoja); border: 1px solid var(--linea); border-radius: 10px;
+    display: flex; flex-direction: column; height: calc(100vh - 140px); min-height: 480px;
+    position: sticky; top: 24px;
+  }
+  @media (max-width: 900px) { .chat { position: static; height: 70vh; } }
+  .chat h2 { font-size: 1rem; margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--linea); }
+  .mensajes { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; }
+  .msg.dino { background: var(--papel); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .msg.yo { background: var(--tinta); color: var(--hoja); align-self: flex-end; border-bottom-right-radius: 3px; }
+  .msg.sistema { align-self: center; color: var(--gris); font-size: .85rem; background: none; padding: 0; text-align: center; }
+  .msg.error { color: var(--error); }
+  .msg img { display: block; width: 100%; max-width: 260px; border-radius: 8px; margin-bottom: 8px; }
+  .escribiendo { color: var(--gris); font-style: italic; }
+  form.entrada { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--linea); }
+  form.entrada input {
+    flex: 1; font: inherit; padding: 10px 12px; border: 1px solid var(--linea); border-radius: 6px; background: #fff; color: var(--tinta);
+  }
+  form.entrada input:disabled { background: var(--papel); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">Isla de los Dinosaurios</div>
+  <ol class="pasos" aria-label="Progreso de la creación">
+    <li data-paso="nombre"><span class="n">1</span>Nombre</li>
+    <li data-paso="identidad"><span class="n">2</span>Identidad</li>
+    <li data-paso="imagen"><span class="n">3</span>Imagen</li>
+    <li data-paso="chat"><span class="n">4</span>Chat</li>
+  </ol>
+  <button class="boton" id="nuevo">Nuevo dinosaurio</button>
+</header>
+
+<main id="main">
+  <section class="vacio" id="vacio">
+    <h2>La isla todavía no tiene habitantes</h2>
+    <p>Crea una especie: la red recurrente inventa el nombre, Ollama escribe su identidad y el modelo de imagen la dibuja. Después puedes conversar con ella.</p>
+    <button class="boton" id="nuevo2">Nuevo dinosaurio</button>
+  </section>
+
+  <article id="ficha" hidden>
+    <div class="lamina">
+      <figure>
+        <div class="marco" id="marco">Esperando la identidad para dibujar…</div>
+        <figcaption id="pie">Lámina generada con aMUSEd</figcaption>
+      </figure>
+      <div>
+        <h1 class="nombre" id="nombre" aria-live="polite"></h1>
+        <p class="significado" id="significado"></p>
+      </div>
+    </div>
+    <dl class="notas" id="notas"></dl>
+    <details class="modelo">
+      <summary>Cómo se creó el nombre</summary>
+      <table id="tablaModelo"></table>
+    </details>
+  </article>
+
+  <aside class="chat" id="chat" hidden>
+    <h2 id="chatTitulo">Conversación</h2>
+    <div class="mensajes" id="mensajes" aria-live="polite"></div>
+    <form class="entrada" id="form">
+      <input id="texto" placeholder="Pregúntale algo…" autocomplete="off" disabled aria-label="Mensaje">
+      <button class="boton" id="enviar" disabled>Enviar</button>
+    </form>
+  </aside>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let dino = null;          // {id, nombre, identidad, imagen}
+let ocupado = false;
+
+const CAMPOS = [
+  ["apariencia", "Apariencia"], ["habitat", "Hábitat"], ["alimentacion", "Alimentación"],
+  ["comportamiento", "Comportamiento"], ["rasgo_distintivo", "Rasgo distintivo"],
+];
+
+async function api(ruta, cuerpo) {
+  const r = await fetch(ruta, {
+    method: cuerpo === undefined ? "GET" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+  });
+  const datos = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(datos.detail || `Error ${r.status}`);
+  return datos;
+}
+
+function paso(nombre, estado) {
+  document.querySelector(`.pasos li[data-paso="${nombre}"]`).dataset.estado = estado;
+}
+function reiniciarPasos() { document.querySelectorAll(".pasos li").forEach(li => delete li.dataset.estado); }
+
+/* El nombre aparece carácter a carácter, como lo genera la RNN */
+async function escribirNombre(nombre) {
+  const h = $("nombre");
+  h.textContent = "";
+  const cursor = document.createElement("span"); cursor.className = "cursor";
+  const lento = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  for (const c of nombre) {
+    h.textContent += c; h.appendChild(cursor);
+    if (lento) await new Promise(r => setTimeout(r, 110));
+  }
+  cursor.remove();
+}
+
+function pintarNotas(identidad) {
+  const dl = $("notas"); dl.innerHTML = "";
+  for (const [k, etiqueta] of CAMPOS) {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = etiqueta;
+    if (identidad) dd.textContent = identidad[k] || "";
+    else { const s = document.createElement("span"); s.className = "esqueleto"; dd.appendChild(s); }
+    if (k === "rasgo_distintivo") { dt.classList.add("rasgo"); dd.classList.add("rasgo"); }
+    dl.append(dt, dd);
+  }
+}
+
+async function pintarModelo() {
+  try {
+    const { modelo_nombres: m, ollama_modelo } = await api("/api/info");
+    const filas = [
+      ["Arquitectura", `${m.celda.toUpperCase()} (${m.nombre})`],
+      ["Capas / estado oculto", `${m.capas} / ${m.oculto}`],
+      ["Embedding", m.emb],
+      ["Épocas (mejor)", `${m.epocas} (${m.mejor_epoca})`],
+      ["Pérdida de validación", m.mejor_val],
+      ["Pérdida / optimizador", `${m.perdida} / ${m.optimizador}`],
+      ["Muestreo", `temperatura ${m.muestreo.temperatura}, top-k ${m.muestreo.top_k || "—"}, top-p ${m.muestreo.top_p}`],
+      ["Nombres de entrenamiento", m.nombres_entrenamiento],
+      ["Modelo de identidad y chat", ollama_modelo],
+    ];
+    $("tablaModelo").innerHTML = "";
+    for (const [a, b] of filas) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td></td><td></td>";
+      tr.children[0].textContent = a; tr.children[1].textContent = b;
+      $("tablaModelo").appendChild(tr);
+    }
+  } catch (e) { console.warn(e); }
+}
+
+function mensaje(tipo, texto, conImagen = false) {
+  const div = document.createElement("div");
+  div.className = `msg ${tipo}`;
+  if (conImagen && dino?.imagen) {
+    const img = document.createElement("img");
+    img.src = dino.imagen; img.alt = `Ilustración de ${dino.nombre}`;
+    div.appendChild(img);
+  }
+  div.appendChild(document.createTextNode(texto));
+  $("mensajes").appendChild(div);
+  $("mensajes").scrollTop = $("mensajes").scrollHeight;
+  return div;
+}
+
+function bloquear(si) {
+  ocupado = si;
+  $("nuevo").disabled = si; $("nuevo2").disabled = si;
+  $("texto").disabled = si || !dino?.identidad; $("enviar").disabled = si || !dino?.identidad;
+}
+
+async function nuevoDinosaurio() {
+  if (ocupado) return;
+  bloquear(true); reiniciarPasos();
+  $("vacio").hidden = true; $("ficha").hidden = false; $("chat").hidden = false;
+  $("mensajes").innerHTML = ""; $("significado").textContent = "";
+  $("marco").textContent = "Esperando la identidad para dibujar…";
+  $("pie").textContent = "Lámina generada con aMUSEd";
+  pintarNotas(null);
+  let actual = "nombre";
+  try {
+    paso("nombre", "activo");
+    dino = await api("/api/dinosaurios", {});
+    await escribirNombre(dino.nombre);
+    $("chatTitulo").textContent = `Conversación con ${dino.nombre}`;
+    paso("nombre", "listo");
+
+    actual = "identidad"; paso("identidad", "activo");
+    mensaje("sistema", "Ollama está escribiendo la identidad. En CPU tarda hasta un minuto.");
+    dino.identidad = (await api(`/api/dinosaurios/${dino.id}/identidad`, {})).identidad;
+    $("significado").textContent = dino.identidad.significado_nombre || "";
+    pintarNotas(dino.identidad);
+    paso("identidad", "listo");
+
+    actual = "imagen"; paso("imagen", "activo");
+    $("marco").textContent = "Dibujando la lámina…";
+    const img = await api(`/api/dinosaurios/${dino.id}/imagen`, {});
+    dino.imagen = img.imagen;
+    $("marco").innerHTML = "";
+    const el = document.createElement("img"); el.src = dino.imagen; el.alt = `Ilustración de ${dino.nombre}`;
+    $("marco").appendChild(el);
+    $("pie").textContent = `Prompt: ${img.prompt}`;
+    paso("imagen", "listo");
+
+    actual = "chat"; paso("chat", "activo");
+    const espera = mensaje("dino escribiendo", `${dino.nombre} se está acercando…`);
+    const r = await api(`/api/dinosaurios/${dino.id}/chat`, { presentar: true });
+    espera.remove();
+    mensaje("dino", r.respuesta, r.incluir_imagen);
+    paso("chat", "listo");
+  } catch (e) {
+    paso(actual, "error");
+    mensaje("sistema error", `${e.message}\nRevisa que el servicio esté encendido y vuelve a pulsar «Nuevo dinosaurio».`);
+  } finally {
+    bloquear(false);
+    if (dino?.identidad) $("texto").focus();
+  }
+}
+
+$("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const texto = $("texto").value.trim();
+  if (!texto || ocupado || !dino) return;
+  $("texto").value = "";
+  mensaje("yo", texto);
+  bloquear(true);
+  const espera = mensaje("dino escribiendo", "Escribiendo…");
+  try {
+    const r = await api(`/api/dinosaurios/${dino.id}/chat`, { mensaje: texto });
+    espera.remove();
+    mensaje("dino", r.respuesta, r.incluir_imagen);
+  } catch (e) {
+    espera.remove();
+    mensaje("sistema error", e.message);
+  } finally { bloquear(false); $("texto").focus(); }
+});
+
+$("nuevo").addEventListener("click", nuevoDinosaurio);
+$("nuevo2").addEventListener("click", nuevoDinosaurio);
+pintarModelo();
+</script>
+</body>
+</html>
