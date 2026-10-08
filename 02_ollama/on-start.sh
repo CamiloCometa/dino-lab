@@ -1,30 +1,26 @@
 #!/bin/bash
 # =============================================================================
 # Lifecycle configuration (on-start) para el notebook de SageMaker.
-# SageMaker cancela la instancia si este script tarda más de 5 minutos, así que
-# solo escribe un script auxiliar y lo lanza en SEGUNDO PLANO; termina al instante.
-# El trabajo real (cada vez que la instancia arranca):
+# SageMaker falla si el lifecycle (o cualquier proceso que deje corriendo) tarda
+# más de 5 minutos. Además, reiniciar Docker durante el arranque se bloquea hasta
+# que el lifecycle termina. Por eso este script:
+#   - escribe un script auxiliar,
+#   - lo lanza como un servicio APARTE con systemd-run (fuera del lifecycle),
+#   - y termina al instante.
+# El servicio, en cada arranque:
 #   1) apunta el data-root de Docker al disco persistente (/home/ec2-user/SageMaker)
 #   2) arranca el contenedor de Ollama (imagen y modelos sobreviven a los reinicios)
 # Registro: /home/ec2-user/SageMaker/on-start.log
 # Pégalo en: SageMaker > Configuraciones de ciclo de vida > Instancia de cuaderno > Iniciar cuaderno
 # =============================================================================
-PERSIST=/home/ec2-user/SageMaker
-mkdir -p "$PERSIST"
-
 cat > /usr/local/bin/dino-onstart.sh <<'SCRIPT'
 #!/bin/bash
 PERSIST=/home/ec2-user/SageMaker
 DOCKER_ROOT=$PERSIST/docker-data      # imágenes y contenedores de Docker
 OLLAMA_DIR=$PERSIST/ollama            # modelos descargados por Ollama
+exec >> "$PERSIST/on-start.log" 2>&1
 mkdir -p "$DOCKER_ROOT" "$OLLAMA_DIR"
 echo "== $(date) inicio"
-
-# 0. Docker instalado
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Instalando Docker..."
-  dnf install -y docker || yum install -y docker
-fi
 
 # 1. data-root persistente (se fusiona con la config existente, no se pisa)
 python3 - "$DOCKER_ROOT" <<'PY'
@@ -40,8 +36,16 @@ if os.path.exists(p) and os.path.getsize(p) > 0:
 cfg["data-root"] = sys.argv[1]
 json.dump(cfg, open(p, "w"), indent=2)
 PY
-systemctl enable docker
-systemctl restart docker
+
+# --no-block: encola el reinicio y no se queda esperando (evita el bloqueo)
+systemctl restart docker --no-block
+echo "Esperando a Docker con el nuevo data-root..."
+for i in $(seq 1 120); do
+  if docker info --format '{{.DockerRootDir}}' 2>/dev/null | grep -q "^$DOCKER_ROOT$"; then
+    break
+  fi
+  sleep 5
+done
 usermod -aG docker ec2-user || true
 echo "Docker data-root: $(docker info --format '{{.DockerRootDir}}')"
 
@@ -59,7 +63,6 @@ echo "== $(date) fin"
 SCRIPT
 chmod +x /usr/local/bin/dino-onstart.sh
 
-# Lanzar desacoplado: sin heredar la salida del lifecycle, para que AWS no lo espere
-setsid nohup /usr/local/bin/dino-onstart.sh >> "$PERSIST/on-start.log" 2>&1 < /dev/null &
-disown
+# Servicio aparte: el lifecycle no lo espera y termina de inmediato
+systemd-run --unit="dino-onstart-$(date +%s)" --no-block /usr/local/bin/dino-onstart.sh
 exit 0
