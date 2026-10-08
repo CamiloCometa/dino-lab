@@ -12,13 +12,14 @@ DIR=$(cd "$(dirname "$0")" && pwd)
 echo ">> Aplicando on-start (data-root persistente + contenedor)"
 sudo bash "$DIR/on-start.sh"
 
-echo ">> Esperando a que Ollama responda..."
-for i in $(seq 1 60); do
+echo ">> Esperando a que Ollama responda (la primera vez descarga la imagen, hasta 10 min)..."
+for i in $(seq 1 120); do
   curl -s http://localhost:11434/api/version && break
   sleep 5
 done
 echo
 
+echo ">> Registro del arranque:"; tail -n 5 "$PERSIST/on-start.log"
 echo ">> Docker data-root:"; sudo docker info --format '{{.DockerRootDir}}'
 
 echo ">> Descargando $MODELO (puede tardar unos minutos)"
