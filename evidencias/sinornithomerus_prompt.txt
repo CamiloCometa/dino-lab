@@ -1,0 +1,3 @@
+Sinornithomerus, dark brown bird-like raptor dinosaur covered in fluffy brown feathers, standing on two legs, huge muscular thighs, small clawed arms, red head, rocky ground, forest background, natural history illustration
+semilla: 4
+modelo: amused/amused-512
