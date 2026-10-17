@@ -6,9 +6,9 @@ Aplicación que crea un dinosaurio ficticio en cuatro etapas encadenadas:
 Modelo de caracteres (RNN) → Nombre → Ollama → Identidad → Imagen (aMUSEd) → Chat
 ```
 
-**Sitio web:** http://<IP-o-dominio-de-EC2>  ← reemplazar
+**Sitio web:** https://3-223-2-25.sslip.io
 **Repositorio:** https://github.com/CamiloCometa/dino-lab
-**Integrantes:** Camilo Cometa, …
+**Integrantes:** Iván Camilo Cometa
 
 ## Componentes
 
@@ -76,14 +76,41 @@ La identidad se envía como mensaje `system` en **cada** petición de chat. `inc
 
 ## Despliegue en AWS (EC2)
 
+EC2 `t3.small`, Amazon Linux 2023, 16 GiB, IP elástica `3.223.2.25`. Grupo de seguridad con entrada SSH (22), HTTP (80) y HTTPS (443).
+La app corre en Docker detrás de **Caddy**, que obtiene automáticamente un certificado de Let's Encrypt para `3-223-2-25.sslip.io`
+(sslip.io traduce ese nombre a la IP). Sin https, los navegadores de celulares y tablets no abrían el sitio.
+
 ```bash
-# En una EC2 Amazon Linux 2023, t3.small, puerto 80 abierto en el security group
 sudo dnf install -y docker git && sudo systemctl enable --now docker
 git clone https://github.com/CamiloCometa/dino-lab.git && cd dino-lab/04_app
-nano .env                       # OLLAMA_URL, OLLAMA_MODEL, IMAGEN_URL
+printf 'OLLAMA_URL=https://<dominio-ngrok>\nOLLAMA_MODEL=llama3.2:3b\nIMAGEN_URL=https://<url>.trycloudflare.com\n' > .env
 sudo docker build -t dino-app .
-sudo docker run -d --name dino-app --restart unless-stopped -p 80:8000 --env-file .env dino-app
+sudo docker network create dino-net
+sudo docker run -d --name dino-app --restart unless-stopped --network dino-net --env-file .env dino-app
+sudo docker run -d --name caddy --restart unless-stopped --network dino-net -p 80:80 -p 443:443 \
+  -v caddy_data:/data caddy:2 caddy reverse-proxy --from 3-223-2-25.sslip.io --to dino-app:8000
 ```
+
+## Antes de una revisión: encender todo
+
+| Paso | Dónde | Qué hacer | Cómo verificar |
+| --- | --- | --- | --- |
+| 1 | AWS Academy | **Start Lab** (la sesión dura ~4 h y al terminar apaga las instancias) | Círculo verde |
+| 2 | EC2 | La instancia `dino-app` debe estar *En ejecución*; los contenedores arrancan solos | Abre https://3-223-2-25.sslip.io |
+| 3 | SageMaker | **Iniciar** `dino-ollama`; el lifecycle arranca Ollama solo | `sudo docker ps` muestra `ollama` |
+| 4 | SageMaker (terminal) | `export NGROK_AUTHTOKEN=…` · `export NGROK_DOMAIN=…` · `bash 02_ollama/tunel_ollama.sh` | `https://<dominio-ngrok>` muestra *Ollama is running* |
+| 5 | Colab | Abrir `03_imagen/imagen_colab.ipynb` desde GitHub, GPU T4, **Ejecutar todo**; copiar `IMAGEN_URL` | `IMAGEN_URL/salud` muestra `{"ok":true}` |
+| 6 | EC2 (terminal) | Actualizar `IMAGEN_URL` en `.env` y reiniciar la app (comandos abajo) | `/api/estado` con los dos `ok: true` |
+
+```bash
+cd ~/dino-lab/04_app
+printf 'OLLAMA_URL=https://<dominio-ngrok>\nOLLAMA_MODEL=llama3.2:3b\nIMAGEN_URL=https://<nueva-url>.trycloudflare.com\n' > .env
+sudo docker rm -f dino-app
+sudo docker run -d --name dino-app --restart unless-stopped --network dino-net --env-file .env dino-app
+curl -s https://3-223-2-25.sslip.io/api/estado
+```
+
+Sin Colab el sitio sigue mostrando a Sinornithomerus y el chat funciona; solo **Nuevo dinosaurio** necesita el servicio de imagen.
 
 ## Seguridad
 
