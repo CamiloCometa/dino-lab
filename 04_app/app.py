@@ -9,6 +9,7 @@ Variables de entorno (ver .env.example):
   IMAGEN_URL      URL pública del servicio de imagen en Colab
   MODEL_PATH      ruta del checkpoint del modelo de caracteres (default model/dino_rnn.pt)
 """
+import base64
 import json
 import os
 import re
@@ -46,6 +47,20 @@ INFO_MODELO = {
 # Dinosaurios de la sesión (en memoria). Cada uno guarda su imagen UNA vez.
 DINOS: "OrderedDict[str, dict]" = OrderedDict()
 MAX_DINOS = 50
+
+# Dinosaurio inicial: el elegido en los pasos 1-3 (nombre de la RNN, identidad de Ollama,
+# imagen de aMUSEd). Se muestra al abrir la página sin volver a generarlo.
+INICIAL_DIR = BASE / "inicial"
+INICIAL_ID = "inicial"
+if (INICIAL_DIR / "identidad.json").exists() and (INICIAL_DIR / "imagen.png").exists():
+    _ident = json.loads((INICIAL_DIR / "identidad.json").read_text(encoding="utf-8-sig"))
+    _prompt = (INICIAL_DIR / "prompt.txt").read_text(encoding="utf-8-sig").splitlines()[0] \
+        if (INICIAL_DIR / "prompt.txt").exists() else _ident.get("prompt_imagen", "")
+    DINOS[INICIAL_ID] = {
+        "id": INICIAL_ID, "nombre": _ident["nombre"], "identidad": _ident,
+        "imagen": "data:image/png;base64," + base64.b64encode((INICIAL_DIR / "imagen.png").read_bytes()).decode(),
+        "prompt_imagen": _prompt, "historial": [],
+    }
 
 # ---------------------------------------------------------------- prompts
 ESQUEMA = {
@@ -105,9 +120,12 @@ async def ollama_chat(mensajes, formato=None, num_predict=300, temperatura=0.7):
 
 async def crear_identidad(nombre: str) -> dict:
     mensajes = [{"role": "system", "content": SISTEMA_IDENTIDAD},
-                {"role": "user", "content": f"Crea la identidad del dinosaurio ficticio llamado {nombre}."}]
+                {"role": "user", "content": (
+                    f"Crea la identidad del dinosaurio ficticio llamado {nombre}. "
+                    "Primero deduce qué significa el nombre a partir de sus raíces y usa ese significado "
+                    "para inventar rasgos coherentes. Cada campo debe tener de 1 a 3 frases completas.")}]
     for _ in range(2):   # un reintento si el JSON llega mal
-        texto = await ollama_chat(mensajes, formato=ESQUEMA, num_predict=700)
+        texto = await ollama_chat(mensajes, formato=ESQUEMA, num_predict=700, temperatura=0.5)
         try:
             identidad = json.loads(texto)
             identidad["nombre"] = nombre
@@ -177,6 +195,17 @@ async def estado():
     return res
 
 
+@app.get("/api/dinosaurios/inicial")
+def dinosaurio_inicial():
+    """Devuelve el dinosaurio elegido en los pasos 1-3 (si está en 04_app/inicial/)."""
+    if INICIAL_ID not in DINOS:
+        raise HTTPException(404, "No hay dinosaurio inicial configurado.")
+    d = DINOS[INICIAL_ID]
+    d["historial"] = []          # cada visita empieza una conversación nueva
+    return {"id": d["id"], "nombre": d["nombre"], "identidad": d["identidad"],
+            "imagen": d["imagen"], "prompt": d["prompt_imagen"]}
+
+
 @app.post("/api/dinosaurios")
 def nuevo_dinosaurio():
     """Paso 1: el modelo RNN ya entrenado genera un nombre (sin reentrenar)."""
@@ -184,7 +213,8 @@ def nuevo_dinosaurio():
     DINOS[dino_id] = {"id": dino_id, "nombre": nombre_nuevo(), "identidad": None,
                       "imagen": None, "historial": []}
     while len(DINOS) > MAX_DINOS:
-        DINOS.popitem(last=False)
+        viejo = next(k for k in DINOS if k != INICIAL_ID)
+        DINOS.pop(viejo)
     return {"id": dino_id, "nombre": DINOS[dino_id]["nombre"]}
 
 

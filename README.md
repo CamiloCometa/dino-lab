@@ -16,8 +16,8 @@ Modelo de caracteres (RNN) → Nombre → Ollama → Identidad → Imagen (aMUSE
 | --- | --- | --- |
 | `01_generador_nombres/` | Notebook: preprocesamiento, 2 configuraciones RNN, curvas, muestreo, 10 nombres, exporta `dino_rnn.pt` | Google Colab |
 | `02_ollama/` | Lifecycle script, instalación de Ollama en Docker, túnel ngrok y notebook de identidad | SageMaker `ml.m5.xlarge` |
-| `03_imagen/` | Notebook: imagen con `amused/amused-512` + servicio HTTP `/generar` | Google Colab (GPU T4) |
-| `04_app/` | Backend FastAPI + interfaz web (carga el modelo RNN entrenado) | AWS EC2 (Docker) |
+| `03_imagen/` | Notebook: imagen con `amused/amused-512` + servicio HTTP `/generar` expuesto con Cloudflare | Google Colab (GPU T4) |
+| `04_app/` | Backend FastAPI + interfaz web (carga el modelo RNN entrenado y el dinosaurio inicial de `04_app/inicial/`) | AWS EC2 (Docker) |
 | `evidencias/` | Curvas, configuraciones, muestreo, nombres, registro del modelo de Ollama, imagen e identidad | — |
 
 ## Qué recibe y devuelve cada componente
@@ -39,6 +39,7 @@ Modelo de caracteres (RNN) → Nombre → Ollama → Identidad → Imagen (aMUSE
 
 | Endpoint | Recibe | Devuelve |
 | --- | --- | --- |
+| `GET /api/dinosaurios/inicial` | — | `{id, nombre, identidad, imagen, prompt}` del dinosaurio elegido en los pasos 1–3 |
 | `POST /api/dinosaurios` | — | `{id, nombre}` (genera con la RNN, sin reentrenar) |
 | `POST /api/dinosaurios/{id}/identidad` | — | `{identidad}` (llama a Ollama) |
 | `POST /api/dinosaurios/{id}/imagen` | — | `{imagen (data URL), prompt}` (se genera una sola vez y se guarda) |
@@ -46,13 +47,23 @@ Modelo de caracteres (RNN) → Nombre → Ollama → Identidad → Imagen (aMUSE
 | `GET /api/info` | — | arquitectura y métricas del modelo de nombres, modelo de Ollama |
 | `GET /api/estado` | — | si Ollama y el servicio de imagen están accesibles |
 
+Al abrir la página se muestra el dinosaurio elegido (**Sinornithomerus**): su nombre salió de la RNN, su identidad de Ollama y su imagen de aMUSEd, y están guardados en `04_app/inicial/` (copias de `evidencias/`). El botón **Nuevo dinosaurio** recorre el flujo completo en vivo para otro nombre.
+
 La identidad se envía como mensaje `system` en **cada** petición de chat. `incluir_imagen` es `true` cuando el dinosaurio se presenta o el usuario pide su descripción/aspecto; la interfaz reutiliza la imagen ya guardada.
 
 ## Cómo ejecutar
 
 1. **Nombres:** abrir `01_generador_nombres/generador_nombres.ipynb` en Colab, subir `dinos.csv`, ejecutar todo. Copiar `dino_rnn.pt` a `04_app/model/` y las evidencias a `evidencias/`.
-2. **Ollama:** crear el lifecycle config con `02_ollama/on-start.sh`; crear la instancia `ml.m5.xlarge` (volumen 30 GB) con ese lifecycle; en la terminal: `bash 02_ollama/setup_ollama.sh`; abrir `identidad_ollama.ipynb`. Exponer con `NGROK_AUTHTOKEN=… NGROK_DOMAIN=… bash 02_ollama/tunel_ollama.sh`.
-3. **Imagen:** abrir `03_imagen/imagen_colab.ipynb` en Colab con GPU; guardar `NGROK_AUTHTOKEN` (y `NGROK_DOMAIN`) en Secretos de Colab; ejecutar todo y copiar la URL.
+2. **Ollama:** crear la instancia `ml.m5.xlarge` (volumen 30 GB, rol `LabRole`, acceso raíz habilitado) y la lifecycle configuration `dino-ollama-onstart`. **El script se carga desde CloudShell, no pegándolo en la consola web**: desde Windows el pegado mete saltos de línea `\r\n` y el script falla con `cannot execute: required file not found`.
+   ```bash
+   # En AWS CloudShell
+   curl -sL https://raw.githubusercontent.com/CamiloCometa/dino-lab/main/02_ollama/on-start.sh | tr -d '\r' > on-start.sh
+   aws sagemaker update-notebook-instance-lifecycle-config \
+     --notebook-instance-lifecycle-config-name dino-ollama-onstart \
+     --on-start Content=$(base64 -w0 on-start.sh)
+   ```
+   Primera vez, en la terminal de Jupyter: `bash 02_ollama/setup_ollama.sh` (descarga `llama3.2:3b`). Luego `identidad_ollama.ipynb`. Exponer Ollama: `NGROK_AUTHTOKEN=… NGROK_DOMAIN=… bash 02_ollama/tunel_ollama.sh`.
+3. **Imagen:** abrir `03_imagen/imagen_colab.ipynb` en Colab con GPU y ejecutarlo. La celda del túnel imprime `IMAGEN_URL = https://….trycloudflare.com` (cambia en cada sesión de Colab).
 4. **App local:**
    ```bash
    cd 04_app
