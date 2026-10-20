@@ -8,7 +8,7 @@ Modelo de caracteres (RNN) → Nombre → Ollama → Identidad → Imagen (aMUSE
 
 **Sitio web:** https://3-223-2-25.sslip.io
 **Repositorio:** https://github.com/CamiloCometa/dino-lab
-**Integrantes:** Iván Camilo Cometa
+**Integrantes:** Iván Camilo Cometa-Leonardo Diazgranados-Sofia Londonño-Mateo Arrubla
 
 ## Componentes
 
