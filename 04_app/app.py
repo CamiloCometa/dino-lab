@@ -75,6 +75,9 @@ ESQUEMA = {
 SISTEMA_IDENTIDAD = """Eres un paleontólogo creativo que describe especies de dinosaurios FICTICIAS.
 Responde solo con JSON válido en español (excepto prompt_imagen, que va en inglés).
 Reglas:
+- Es un DINOSAURIO: tiene cuatro extremidades (camina en dos o en cuatro patas) y cola.
+  Nunca es una serpiente, un pez, un insecto ni un ave moderna, aunque el nombre lo sugiera.
+- significado_nombre: UNA sola frase que explique el nombre exacto raíz por raíz (p. ej. «"lagarto veloz", de veloci- y -raptor»).
 - Usa el nombre para inspirar los rasgos. Pistas de raíces reales: -saurus (lagarto), -raptor (ladrón/cazador),
   -odon (diente), -venator (cazador), -ceratops (cara con cuernos), -don, -onyx (garra), mega- (grande), micro- (pequeño).
 - Todos los rasgos deben ser coherentes entre sí (p. ej., dientes de carnívoro => dieta carnívora).
@@ -129,10 +132,41 @@ async def crear_identidad(nombre: str) -> dict:
         try:
             identidad = json.loads(texto)
             identidad["nombre"] = nombre
+            if parece_espanol(identidad.get("prompt_imagen", "")):
+                identidad["prompt_imagen"] = await prompt_en_ingles(identidad)
             return identidad
         except json.JSONDecodeError:
             continue
     raise HTTPException(502, "Ollama devolvió una identidad que no es JSON válido.")
+
+
+PALABRAS_ES = {"el", "la", "los", "las", "un", "una", "con", "de", "del", "en", "y", "que", "su",
+               "sus", "por", "para", "es", "muy", "cuerpo", "cabeza", "patas", "piel", "color"}
+
+
+def parece_espanol(texto: str) -> bool:
+    palabras = re.findall(r"[a-záéíóúñü]+", (texto or "").lower())
+    if not palabras:
+        return True
+    tildes = bool(re.search(r"[áéíóúñ]", texto.lower()))
+    return tildes or sum(p in PALABRAS_ES for p in palabras) / len(palabras) > 0.1
+
+
+async def prompt_en_ingles(identidad: dict) -> str:
+    """aMUSEd solo entiende bien inglés: si Ollama dejó el prompt en español, se lo pide de nuevo."""
+    mensajes = [
+        {"role": "system", "content": "You write short prompts for a text-to-image model. Answer in English only, "
+                                      "with a single line and no quotes."},
+        {"role": "user", "content": (
+            "Write one English prompt of at most 35 words describing only what this dinosaur looks like: "
+            "body shape, legs, size, skin or feathers, colors, the distinctive trait and the background. "
+            "It must be a dinosaur with legs.\n"
+            f"Appearance: {identidad.get('apariencia', '')}\n"
+            f"Distinctive trait: {identidad.get('rasgo_distintivo', '')}\n"
+            f"Habitat: {identidad.get('habitat', '')}")},
+    ]
+    texto = await ollama_chat(mensajes, num_predict=90, temperatura=0.3)
+    return texto.strip().strip('"').splitlines()[0]
 
 
 def prompt_imagen(identidad: dict) -> str:
